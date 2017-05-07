@@ -46,8 +46,7 @@ namespace CommandQueuePoc
         public AkkaHandler()
         {
             ActorSystem = ActorSystem.Create("app");
-            //here you would register your toplevel actors
-            MyActor = ActorSystem.ActorOf<AkkaActor>();
+            MyActor = ActorSystem.ActorOf<CommandHandlerAkkaActor>();
         }
 
         public async Task SendAsync<T>(T command)
@@ -60,9 +59,9 @@ namespace CommandQueuePoc
         }
     }
 
-    class AkkaActor : ReceiveActor
+    class CommandHandlerAkkaActor : ReceiveActor
     {
-        public AkkaActor()
+        public CommandHandlerAkkaActor()
         {
             ReceiveAny(ReceiveMessage);
         }

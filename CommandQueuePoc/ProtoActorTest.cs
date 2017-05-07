@@ -44,7 +44,7 @@ namespace CommandQueuePoc
         PID pid;
         public ProtoActorHandler()
         {
-            var props = Actor.FromProducer(() => new ProtoHandler());
+            var props = Actor.FromProducer(() => new CommandHandlerProtoHandler());
             pid = Actor.Spawn(props);
         }
 
@@ -58,7 +58,7 @@ namespace CommandQueuePoc
         }
     }
 
-    class ProtoHandler : IActor
+    class CommandHandlerProtoHandler : IActor
     {
         public Task ReceiveAsync(IContext context)
         {
