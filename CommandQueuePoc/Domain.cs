@@ -11,6 +11,7 @@ namespace CommandQueuePoc
 
         public MyCommand Handle(MyCommand command)
         {
+            if(command.Name == "command5") throw new ArgumentException("command5");
             Thread.Sleep(command.Sleep);
             Commands.Add(command.Name);
             return command;

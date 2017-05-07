@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Akka.Actor;
 using FluentAssertions;
@@ -24,6 +25,17 @@ namespace CommandQueuePoc
             var commands = MyCommandHandler.Commands;
             commands.Should().ContainInOrder("command1", "command2", "command3", "command4");
         }
+
+        [Fact]
+        public void ThrowExceptionTest()
+        {
+            MyCommandHandler.Commands = new List<string>();
+
+            var handler = new AkkaHandler();
+
+            Func<Task> act = () => handler.SendAsync(new MyCommand("command5", 300));
+            act.ShouldThrow<InvalidOperationException>();
+        }
     }
 
     class AkkaHandler
@@ -38,9 +50,13 @@ namespace CommandQueuePoc
             MyActor = ActorSystem.ActorOf<AkkaActor>();
         }
 
-        public Task SendAsync<T>(T command)
+        public async Task SendAsync<T>(T command)
         {
-            return MyActor.Ask<object>(command);
+            var result = await MyActor.Ask<object>(command).ConfigureAwait(false);
+            if (result is Exception ex)
+            {
+                throw new InvalidOperationException("error in command execution", ex);
+            }
         }
     }
 
@@ -55,8 +71,15 @@ namespace CommandQueuePoc
         {
             if (message is MyCommand r)
             {
-                new MyCommandHandler().Handle(r);
-                Sender.Tell("ok");
+                try
+                {
+                    new MyCommandHandler().Handle(r);
+                    Sender.Tell("ok");
+                }
+                catch (Exception ex)
+                {
+                    Sender.Tell(ex);
+                }
             }
         }
     }

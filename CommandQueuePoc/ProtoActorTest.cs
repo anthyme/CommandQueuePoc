@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
@@ -16,14 +17,25 @@ namespace CommandQueuePoc
 
             var handler = new ProtoActorHandler();
 
-            handler.Send(new MyCommand("command1", 300));
-            handler.Send(new MyCommand("command2", 250));
-            handler.Send(new MyCommand("command3", 1));
-            handler.Send(new MyCommand("command4", 20));
+            var t1 = handler.SendAsync(new MyCommand("command1", 300));
+            var t2 = handler.SendAsync(new MyCommand("command2", 250));
+            var t3 = handler.SendAsync(new MyCommand("command3", 1));
+            var t4 = handler.SendAsync(new MyCommand("command4", 20));
 
-            Thread.Sleep(1000);
+            await Task.WhenAll(t1, t2, t3, t4);
             var commands = MyCommandHandler.Commands;
             commands.Should().ContainInOrder("command1", "command2", "command3", "command4");
+        }
+
+        [Fact]
+        public void ThrowExceptionTest()
+        {
+            MyCommandHandler.Commands = new List<string>();
+
+            var handler = new ProtoActorHandler();
+
+            Func<Task> act = () => handler.SendAsync(new MyCommand("command5", 300));
+            act.ShouldThrow<InvalidOperationException>();
         }
     }
 
@@ -36,9 +48,13 @@ namespace CommandQueuePoc
             pid = Actor.Spawn(props);
         }
 
-        public void Send<T>(T command)
+        public async Task SendAsync<T>(T command)
         {
-            pid.Tell(command);
+            var result = await pid.RequestAsync<object>(command).ConfigureAwait(false);
+            if (result is Exception ex)
+            {
+                throw new InvalidOperationException("error in command execution", ex);
+            }
         }
     }
 
@@ -49,7 +65,15 @@ namespace CommandQueuePoc
             var msg = context.Message;
             if (msg is MyCommand r)
             {
-                new MyCommandHandler().Handle(r);
+                try
+                {
+                    new MyCommandHandler().Handle(r);
+                    context.Sender?.Tell("Ok");
+                }
+                catch (Exception ex)
+                {
+                    context.Sender?.Tell(ex);
+                }
             }
             return Actor.Done;
         }
